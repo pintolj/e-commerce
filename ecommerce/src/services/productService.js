@@ -31,12 +31,13 @@ export async function actualizarProducto(id, datosActualizados) {
   return data
 }
 
-export async function eliminarProducto(id, imagenUrl) {
-  if (imagenUrl) {
+export async function eliminarProducto(id, imagenUrl, imagenes) {
+  const urlsToTry = [imagenUrl, ...(imagenes || [])].filter(Boolean)
+  for (const url of urlsToTry) {
     try {
-      const urlParts = imagenUrl.split('/productos/')
+      const urlParts = url.split('/productos/')
       if (urlParts.length > 1) {
-        const filePath = urlParts[1]
+        const filePath = urlParts[1].split('?')[0]
         await supabase.storage.from('productos').remove([filePath])
       }
     } catch {
@@ -55,7 +56,7 @@ export async function eliminarProducto(id, imagenUrl) {
 export async function subirImagen(file) {
   const fileExt = file.name.split('.').pop()
   const fileName = `${Date.now()}.${fileExt}`
-  const filePath = `${fileName}`
+  const filePath = fileName
 
   const { error: uploadError } = await supabase.storage
     .from('productos')
@@ -68,4 +69,17 @@ export async function subirImagen(file) {
     .getPublicUrl(filePath)
 
   return data.publicUrl
+}
+
+export async function subirMultiplesImagenes(files) {
+  const maxFiles = 6
+  const filesToUpload = Array.from(files).slice(0, maxFiles)
+  const urls = []
+
+  for (const file of filesToUpload) {
+    const url = await subirImagen(file)
+    urls.push(url)
+  }
+
+  return urls
 }

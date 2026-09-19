@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Package, Loader2, Trash2, Pencil, X, Plus } from 'lucide-react'
-import { crearProducto, obtenerProductos, eliminarProducto, actualizarProducto, subirImagen } from '../../services/productService'
+import { Package, Loader2, Trash2, Pencil, X, Plus, ImagePlus } from 'lucide-react'
+import { crearProducto, obtenerProductos, eliminarProducto, actualizarProducto, subirMultiplesImagenes } from '../../services/productService'
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount)
 }
+
+const MAX_IMAGES = 6
 
 export default function Dashboard() {
   const [productos, setProductos] = useState([])
@@ -21,8 +23,9 @@ export default function Dashboard() {
   const [stock, setStock] = useState('')
   const [tallas, setTallas] = useState('')
   const [colores, setColores] = useState('')
-  const [imagen, setImagen] = useState(null)
-  const [imagenPreview, setImagenPreview] = useState(null)
+  const [nuevasImagenes, setNuevasImagenes] = useState([])
+  const [previewsExistentes, setPreviewsExistentes] = useState([])
+  const [previewsNuevas, setPreviewsNuevas] = useState([])
 
   const fetchProductos = async () => {
     setLoading(true)
@@ -41,7 +44,8 @@ export default function Dashboard() {
   const resetForm = () => {
     setNombre(''); setDescripcion(''); setCategoria('')
     setPrecio(''); setStock(''); setTallas(''); setColores('')
-    setImagen(null); setImagenPreview(null); setEditId(null)
+    setNuevasImagenes([]); setPreviewsExistentes([]); setPreviewsNuevas([])
+    setEditId(null)
   }
 
   const openCreateModal = () => {
@@ -58,8 +62,10 @@ export default function Dashboard() {
     setStock(producto.stock)
     setTallas(producto.tallas || '')
     setColores(producto.colores || '')
-    setImagen(null)
-    setImagenPreview(producto.imagen_url || null)
+    setNuevasImagenes([])
+    setPreviewsNuevas([])
+    const imagenesExistentes = producto.imagenes || (producto.imagen_url ? [producto.imagen_url] : [])
+    setPreviewsExistentes(imagenesExistentes)
     setShowModal(true)
   }
 
@@ -69,21 +75,42 @@ export default function Dashboard() {
   }
 
   const handleImageChange = (e) => {
-    const file = e.target.files?.[0] || null
-    if (file) {
-      setImagen(file)
-      setImagenPreview(URL.createObjectURL(file))
-    }
+    const files = Array.from(e.target.files || [])
+    const totalActual = previewsExistentes.length + previewsNuevas.length
+    const disponibles = MAX_IMAGES - totalActual
+    if (disponibles <= 0) return
+
+    const archivosAGuardar = files.slice(0, disponibles)
+    const nuevasPreviews = archivosAGuardar.map((f) => URL.createObjectURL(f))
+
+    setNuevasImagenes((prev) => [...prev, ...archivosAGuardar])
+    setPreviewsNuevas((prev) => [...prev, ...nuevasPreviews])
+    e.target.value = ''
   }
+
+  const removePreviewExistente = (index) => {
+    setPreviewsExistentes((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const removePreviewNueva = (index) => {
+    setNuevasImagenes((prev) => prev.filter((_, i) => i !== index))
+    setPreviewsNuevas((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const totalImagenes = previewsExistentes.length + previewsNuevas.length
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
     try {
-      let imagenUrl = imagenPreview
-      if (imagen) {
-        imagenUrl = await subirImagen(imagen)
+      let urlsNuevas = []
+      if (nuevasImagenes.length > 0) {
+        urlsNuevas = await subirMultiplesImagenes(nuevasImagenes)
       }
+
+      const todasLasUrls = [...previewsExistentes, ...urlsNuevas]
+      const imagenUrl = todasLasUrls[0] || null
+      const imagenes = todasLasUrls
 
       const productoData = {
         nombre,
@@ -93,7 +120,8 @@ export default function Dashboard() {
         stock: parseInt(stock),
         tallas: tallas,
         colores: colores,
-        imagen_url: imagenUrl
+        imagen_url: imagenUrl,
+        imagenes: imagenes
       }
 
       if (editId) {
@@ -111,11 +139,11 @@ export default function Dashboard() {
     }
   }
 
-  const handleDelete = async (id, imagenUrl) => {
+  const handleDelete = async (id, producto) => {
     if (!confirm('Estas seguro de eliminar este producto?')) return
     setDeletingId(id)
     try {
-      await eliminarProducto(id, imagenUrl)
+      await eliminarProducto(id, producto.imagen_url, producto.imagenes)
       await fetchProductos()
     } catch (error) {
       console.error('Error al eliminar producto:', error)
@@ -155,7 +183,6 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-              {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -185,6 +212,9 @@ export default function Dashboard() {
                             <div>
                               <p className="font-medium text-gray-900">{producto.nombre}</p>
                               {producto.categoria && <p className="text-xs text-gray-500">{producto.categoria}</p>}
+                              {producto.imagenes && producto.imagenes.length > 1 && (
+                                <p className="text-[10px] text-indigo-500">{producto.imagenes.length} fotos</p>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -201,7 +231,7 @@ export default function Dashboard() {
                             <button onClick={() => openEditModal(producto)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center" title="Editar">
                               <Pencil size={16} />
                             </button>
-                            <button onClick={() => handleDelete(producto.id, producto.imagen_url)} disabled={deletingId === producto.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 min-w-[36px] min-h-[36px] flex items-center justify-center" title="Eliminar">
+                            <button onClick={() => handleDelete(producto.id, producto)} disabled={deletingId === producto.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 min-w-[36px] min-h-[36px] flex items-center justify-center" title="Eliminar">
                               {deletingId === producto.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                             </button>
                           </div>
@@ -212,7 +242,6 @@ export default function Dashboard() {
                 </table>
               </div>
 
-              {/* Mobile cards */}
               <div className="md:hidden divide-y divide-gray-100">
                 {productos.map((producto) => (
                   <div key={producto.id} className="p-4 flex gap-3">
@@ -235,7 +264,7 @@ export default function Dashboard() {
                           <button onClick={() => openEditModal(producto)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center">
                             <Pencil size={16} />
                           </button>
-                          <button onClick={() => handleDelete(producto.id, producto.imagen_url)} disabled={deletingId === producto.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 min-w-[36px] min-h-[36px] flex items-center justify-center">
+                          <button onClick={() => handleDelete(producto.id, producto)} disabled={deletingId === producto.id} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 min-w-[36px] min-h-[36px] flex items-center justify-center">
                             {deletingId === producto.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                           </button>
                         </div>
@@ -305,20 +334,47 @@ export default function Dashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Imagen</label>
-                  <label className="flex flex-col items-center justify-center w-full h-28 sm:h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 transition-colors">
-                    {imagenPreview ? (
-                      <div className="relative w-full h-full">
-                        <img src={imagenPreview} alt="Preview" className="w-full h-full object-contain p-2" />
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setImagen(null); setImagenPreview(null) }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 min-w-[24px] min-h-[24px] flex items-center justify-center">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-400">Seleccionar imagen</span>
-                    )}
-                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Imagenes</label>
+                    <span className={`text-xs font-medium ${totalImagenes >= MAX_IMAGES ? 'text-red-500' : 'text-gray-400'}`}>
+                      {totalImagenes}/{MAX_IMAGES}
+                    </span>
+                  </div>
+
+                  {(previewsExistentes.length > 0 || previewsNuevas.length > 0) && (
+                    <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+                      {previewsExistentes.map((url, i) => (
+                        <div key={`exist-${i}`} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-gray-200 group">
+                          <img src={url} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removePreviewExistente(i)} className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-[20px] min-h-[20px] flex items-center justify-center">
+                            <X size={10} />
+                          </button>
+                          {i === 0 && <span className="absolute bottom-0 left-0 bg-indigo-600 text-white text-[8px] px-1 rounded-tr">Principal</span>}
+                        </div>
+                      ))}
+                      {previewsNuevas.map((url, i) => (
+                        <div key={`nueva-${i}`} className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-indigo-200 group">
+                          <img src={url} alt={`Nueva ${i + 1}`} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removePreviewNueva(i)} className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity min-w-[20px] min-h-[20px] flex items-center justify-center">
+                            <X size={10} />
+                          </button>
+                          {previewsExistentes.length === 0 && i === 0 && <span className="absolute bottom-0 left-0 bg-indigo-600 text-white text-[8px] px-1 rounded-tr">Principal</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {totalImagenes < MAX_IMAGES && (
+                    <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 transition-colors">
+                      <ImagePlus className="w-6 h-6 text-gray-400 mb-1" />
+                      <span className="text-xs text-gray-400">Agregar imagen ({MAX_IMAGES - totalImagenes} restantes)</span>
+                      <input type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
+                    </label>
+                  )}
+
+                  {totalImagenes === 0 && (
+                    <p className="text-xs text-gray-400 text-center mt-1">No hay imagenes seleccionadas</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">

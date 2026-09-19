@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ShoppingCart, Loader2, Search, X, Eye } from 'lucide-react'
+import { ShoppingCart, Loader2, Search, X, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 import { obtenerProductos } from '../services/productService'
 import { useCart } from '../context/CartContext'
 import { buscarProductos } from '../utils/searchUtils'
@@ -9,16 +9,87 @@ function parseOptions(text) {
   return text.split(',').map((s) => s.trim()).filter(Boolean)
 }
 
+function getImages(producto) {
+  if (producto.imagenes && producto.imagenes.length > 0) return producto.imagenes
+  if (producto.imagen_url) return [producto.imagen_url]
+  return []
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value)
+}
+
+function ProductCard({ producto, onOpen }) {
+  const images = getImages(producto)
+  const [current, setCurrent] = useState(0)
+  const [hovering, setHovering] = useState(false)
+  const hasMultiple = images.length > 1
+
+  const prev = (e) => {
+    e.stopPropagation()
+    setCurrent((c) => (c === 0 ? images.length - 1 : c - 1))
+  }
+
+  const next = (e) => {
+    e.stopPropagation()
+    setCurrent((c) => (c === images.length - 1 ? 0 : c + 1))
+  }
+
+  return (
+    <div
+      className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col border border-gray-100 cursor-pointer"
+      onClick={() => onOpen(producto)}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => { setHovering(false); setCurrent(0) }}
+    >
+      <div className="relative aspect-square bg-gray-50 overflow-hidden">
+        {images.length > 0 ? (
+          <img src={images[current]} alt={producto.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-300">
+            <ShoppingCart className="w-8 h-8 sm:w-12 sm:h-12" />
+          </div>
+        )}
+
+        {hasMultiple && (
+          <>
+            <button onClick={prev} className="absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={next} className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {images.map((_, i) => (
+                <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === current ? 'bg-white' : 'bg-white/50'}`} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="p-3 sm:p-4 flex flex-col flex-1">
+        {producto.categoria && <span className="text-[10px] sm:text-[11px] font-medium text-gray-400 uppercase tracking-wide">{producto.categoria}</span>}
+        <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mt-1 mb-2 line-clamp-2 leading-snug">{producto.nombre}</h3>
+        <div className="mt-auto">
+          <p className="text-sm sm:text-lg font-bold text-blue-600 mb-2 sm:mb-3">{formatCurrency(producto.precio)}</p>
+          <div className="w-full flex items-center justify-center gap-1.5 sm:gap-2 bg-gray-900 hover:bg-blue-600 text-white text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-lg transition-colors min-h-[36px] sm:min-h-[40px]">
+            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            Ver Detalles
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function ProductModal({ producto, onClose, onAdd }) {
   const tallas = parseOptions(producto.tallas)
   const colores = parseOptions(producto.colores)
+  const images = getImages(producto)
   const [talla, setTalla] = useState(tallas[0] || '')
   const [color, setColor] = useState(colores[0] || '')
   const [added, setAdded] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(0)
 
   const handleAdd = () => {
     onAdd(producto, talla, color)
@@ -30,15 +101,37 @@ function ProductModal({ producto, onClose, onAdd }) {
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={onClose}>
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] sm:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="relative">
-          {producto.imagen_url ? (
-            <img src={producto.imagen_url} alt={producto.nombre} className="w-full aspect-square object-cover sm:rounded-t-2xl" />
+          {images.length > 0 ? (
+            <img src={images[selectedImage]} alt={producto.nombre} className="w-full aspect-square object-cover sm:rounded-t-2xl" />
           ) : (
             <div className="w-full aspect-square bg-gray-100 sm:rounded-t-2xl flex items-center justify-center text-gray-400">Sin imagen</div>
           )}
           <button onClick={onClose} className="absolute top-3 right-3 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center cursor-pointer">
             <X className="w-5 h-5" />
           </button>
+
+          {images.length > 1 && (
+            <>
+              <button onClick={() => setSelectedImage((s) => s === 0 ? images.length - 1 : s - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center cursor-pointer">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button onClick={() => setSelectedImage((s) => s === images.length - 1 ? 0 : s + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center cursor-pointer">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
+
+        {images.length > 1 && (
+          <div className="flex gap-2 p-3 overflow-x-auto border-b border-gray-100">
+            {images.map((url, i) => (
+              <button key={i} onClick={() => setSelectedImage(i)} className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-colors cursor-pointer ${selectedImage === i ? 'border-blue-600' : 'border-gray-200 hover:border-gray-400'}`}>
+                <img src={url} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="p-4 sm:p-6">
           {producto.categoria && <span className="inline-block text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full mb-2">{producto.categoria}</span>}
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{producto.nombre}</h2>
@@ -167,28 +260,7 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
               {productosFiltrados.map((producto) => (
-                <div key={producto.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group flex flex-col border border-gray-100">
-                  <div className="relative aspect-square bg-gray-50 overflow-hidden">
-                    {producto.imagen_url ? (
-                      <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <ShoppingCart className="w-8 h-8 sm:w-12 sm:h-12" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 sm:p-4 flex flex-col flex-1">
-                    {producto.categoria && <span className="text-[10px] sm:text-[11px] font-medium text-gray-400 uppercase tracking-wide">{producto.categoria}</span>}
-                    <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mt-1 mb-2 line-clamp-2 leading-snug">{producto.nombre}</h3>
-                    <div className="mt-auto">
-                      <p className="text-sm sm:text-lg font-bold text-blue-600 mb-2 sm:mb-3">{formatCurrency(producto.precio)}</p>
-                      <button onClick={() => setProductoModal(producto)} className="w-full flex items-center justify-center gap-1.5 sm:gap-2 bg-gray-900 hover:bg-blue-600 text-white text-xs sm:text-sm font-medium py-2 sm:py-2.5 rounded-lg transition-colors cursor-pointer min-h-[36px] sm:min-h-[40px]">
-                        <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        Ver Detalles
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProductCard key={producto.id} producto={producto} onOpen={setProductoModal} />
               ))}
             </div>
           </>
