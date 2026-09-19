@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { comprimirMultiplesImagenes } from '../utils/imageCompressor'
 
 export async function obtenerProductos() {
   const { data, error } = await supabase
@@ -71,13 +72,29 @@ export async function subirImagen(file) {
   return data.publicUrl
 }
 
-export async function subirMultiplesImagenes(files) {
+export async function subirMultiplesImagenes(files, onProgress) {
   const maxFiles = 6
   const filesToUpload = Array.from(files).slice(0, maxFiles)
   const urls = []
 
-  for (const file of filesToUpload) {
-    const url = await subirImagen(file)
+  for (let i = 0; i < filesToUpload.length; i++) {
+    if (onProgress) onProgress(i + 1, filesToUpload.length)
+    const url = await subirImagen(filesToUpload[i])
+    urls.push(url)
+  }
+
+  return urls
+}
+
+export async function comprimirYSubirImagenes(files, onCompressProgress, onUploadProgress) {
+  const maxFiles = 6
+  const filesToProcess = Array.from(files).slice(0, maxFiles)
+  const comprimidas = await comprimirMultiplesImagenes(filesToProcess, onCompressProgress)
+  const urls = []
+
+  for (let i = 0; i < comprimidas.length; i++) {
+    if (onUploadProgress) onUploadProgress(i + 1, comprimidas.length)
+    const url = await subirImagen(comprimidas[i])
     urls.push(url)
   }
 

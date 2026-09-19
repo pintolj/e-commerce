@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react'
 import { Package, Loader2, Trash2, Pencil, X, Plus, ImagePlus } from 'lucide-react'
-import { crearProducto, obtenerProductos, eliminarProducto, actualizarProducto, subirMultiplesImagenes } from '../../services/productService'
+import { crearProducto, obtenerProductos, eliminarProducto, actualizarProducto, comprimirYSubirImagenes } from '../../services/productService'
+import { esImagenValida } from '../../utils/imageCompressor'
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount)
 }
 
 const MAX_IMAGES = 6
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+
+function esExtensionValida(nombre) {
+  const ext = nombre.split('.').pop().toLowerCase()
+  return ALLOWED_EXTENSIONS.includes(ext)
+}
 
 export default function Dashboard() {
   const [productos, setProductos] = useState([])
@@ -14,6 +21,7 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [progressMsg, setProgressMsg] = useState('')
   const [deletingId, setDeletingId] = useState(null)
 
   const [nombre, setNombre] = useState('')
@@ -45,7 +53,7 @@ export default function Dashboard() {
     setNombre(''); setDescripcion(''); setCategoria('')
     setPrecio(''); setStock(''); setTallas(''); setColores('')
     setNuevasImagenes([]); setPreviewsExistentes([]); setPreviewsNuevas([])
-    setEditId(null)
+    setEditId(null); setProgressMsg('')
   }
 
   const openCreateModal = () => {
@@ -80,7 +88,8 @@ export default function Dashboard() {
     const disponibles = MAX_IMAGES - totalActual
     if (disponibles <= 0) return
 
-    const archivosAGuardar = files.slice(0, disponibles)
+    const archivosValidos = files.filter((f) => esImagenValida(f) && esExtensionValida(f.name))
+    const archivosAGuardar = archivosValidos.slice(0, disponibles)
     const nuevasPreviews = archivosAGuardar.map((f) => URL.createObjectURL(f))
 
     setNuevasImagenes((prev) => [...prev, ...archivosAGuardar])
@@ -105,7 +114,12 @@ export default function Dashboard() {
     try {
       let urlsNuevas = []
       if (nuevasImagenes.length > 0) {
-        urlsNuevas = await subirMultiplesImagenes(nuevasImagenes)
+        setProgressMsg('Optimizando imagenes...')
+        urlsNuevas = await comprimirYSubirImagenes(
+          nuevasImagenes,
+          (current, total) => setProgressMsg(`Comprimiendo ${current}/${total}...`),
+          (current, total) => setProgressMsg(`Subiendo ${current}/${total}...`)
+        )
       }
 
       const todasLasUrls = [...previewsExistentes, ...urlsNuevas]
@@ -134,8 +148,10 @@ export default function Dashboard() {
       await fetchProductos()
     } catch (error) {
       console.error('Error al guardar producto:', error)
+      setProgressMsg('Error: ' + error.message)
     } finally {
       setSubmitting(false)
+      setProgressMsg('')
     }
   }
 
@@ -367,8 +383,8 @@ export default function Dashboard() {
                   {totalImagenes < MAX_IMAGES && (
                     <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-indigo-400 transition-colors">
                       <ImagePlus className="w-6 h-6 text-gray-400 mb-1" />
-                      <span className="text-xs text-gray-400">Agregar imagen ({MAX_IMAGES - totalImagenes} restantes)</span>
-                      <input type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
+                      <span className="text-xs text-gray-400">JPG, PNG, WEBP - Max {MAX_IMAGES} fotos</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleImageChange} className="hidden" />
                     </label>
                   )}
 
@@ -377,10 +393,17 @@ export default function Dashboard() {
                   )}
                 </div>
 
+                {progressMsg && (
+                  <div className="flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 text-sm">
+                    <Loader2 size={16} className="animate-spin flex-shrink-0" />
+                    {progressMsg}
+                  </div>
+                )}
+
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   <button type="submit" disabled={submitting} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-white transition-colors cursor-pointer disabled:opacity-50 min-h-[48px] ${editId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
                     {submitting && <Loader2 size={18} className="animate-spin" />}
-                    {editId ? 'Actualizar Producto' : 'Crear Producto'}
+                    {submitting && progressMsg ? progressMsg : (editId ? 'Actualizar Producto' : 'Crear Producto')}
                   </button>
                   <button type="button" onClick={closeModal} className="px-6 py-3 rounded-lg font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors cursor-pointer min-h-[48px]">
                     Cancelar
