@@ -3,7 +3,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import UserLayout from './layouts/UserLayout'
 import AdminLayout from './layouts/AdminLayout'
 import Home from './pages/Home'
-import Login from './pages/Login'
 import Cart from './pages/Cart'
 import Dashboard from './pages/admin/Dashboard'
 
@@ -13,7 +12,6 @@ function App() {
       <Routes>
         <Route element={<UserLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
           <Route path="/cart" element={<Cart />} />
         </Route>
 
