@@ -44,7 +44,7 @@ function ProductCard({ producto, onOpen }) {
     >
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
         {images.length > 0 ? (
-          <img src={images[current]} alt={producto.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+            <img src={images[current]} alt={producto.nombre} width="320" height="320" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300">
             <ShoppingCart className="w-8 h-8 sm:w-12 sm:h-12" />
@@ -53,10 +53,10 @@ function ProductCard({ producto, onOpen }) {
 
         {hasMultiple && (
           <>
-            <button onClick={prev} className="absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+            <button onClick={prev} aria-label="Imagen anterior" className="absolute left-1 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={next} className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+            <button onClick={next} aria-label="Siguiente imagen" className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
               <ChevronRight className="w-4 h-4" />
             </button>
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
@@ -68,7 +68,7 @@ function ProductCard({ producto, onOpen }) {
         )}
       </div>
       <div className="p-3 sm:p-4 flex flex-col flex-1">
-        {producto.categoria && <span className="text-[10px] sm:text-[11px] font-medium text-gray-400 uppercase tracking-wide">{producto.categoria}</span>}
+        {producto.categoria && <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 uppercase tracking-wide">{producto.categoria}</span>}
         <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mt-1 mb-2 line-clamp-2 leading-snug">{producto.nombre}</h3>
         <div className="mt-auto">
           <p className="text-sm sm:text-lg font-bold text-blue-600 mb-2 sm:mb-3">{formatCurrency(producto.precio)}</p>
@@ -106,16 +106,16 @@ function ProductModal({ producto, onClose, onAdd }) {
           ) : (
             <div className="w-full aspect-square bg-gray-100 sm:rounded-t-2xl flex items-center justify-center text-gray-400">Sin imagen</div>
           )}
-          <button onClick={onClose} className="absolute top-3 right-3 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center cursor-pointer">
+          <button onClick={onClose} aria-label="Cerrar" className="absolute top-3 right-3 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center cursor-pointer">
             <X className="w-5 h-5" />
           </button>
 
           {images.length > 1 && (
             <>
-              <button onClick={() => setSelectedImage((s) => s === 0 ? images.length - 1 : s - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center cursor-pointer">
+              <button onClick={() => setSelectedImage((s) => s === 0 ? images.length - 1 : s - 1)} aria-label="Imagen anterior" className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center cursor-pointer">
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button onClick={() => setSelectedImage((s) => s === images.length - 1 ? 0 : s + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center cursor-pointer">
+              <button onClick={() => setSelectedImage((s) => s === images.length - 1 ? 0 : s + 1)} aria-label="Siguiente imagen" className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center cursor-pointer">
                 <ChevronRight className="w-5 h-5" />
               </button>
             </>
@@ -214,7 +214,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {productos.length > 0 && (
           <div className="mb-6 sm:mb-10 bg-gradient-to-r from-gray-900 to-gray-700 rounded-2xl overflow-hidden relative min-h-[160px] sm:min-h-[240px] flex items-center">
-            <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800" alt="Tienda" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+            <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=75&auto=format" alt="Tienda" width="800" height="240" fetchpriority="high" className="absolute inset-0 w-full h-full object-cover opacity-30" />
             <div className="relative z-10 p-5 sm:p-8 lg:p-12">
               <span className="text-blue-400 text-xs sm:text-sm font-semibold uppercase tracking-wider">Bienvenido</span>
               <h2 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-white mt-1 sm:mt-2 mb-2 sm:mb-3">Descubre Nuestros Productos</h2>
