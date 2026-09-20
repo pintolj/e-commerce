@@ -18,7 +18,7 @@ export default function Cart() {
     )
     .join('%0A')
 
-  const whatsappUrl = `https://wa.me/04245510357/?text=Hola, quiero hacer el siguiente pedido:%0A%0A${whatsappMessage}%0A%0ATotal: ${formatCurrency(total)}`
+  const whatsappUrl = `https://wa.me/+584245510357/?text=Hola, quiero hacer el siguiente pedido:%0A%0A${whatsappMessage}%0A%0ATotal: ${formatCurrency(total)}`
 
   if (cart.length === 0) {
     return (
